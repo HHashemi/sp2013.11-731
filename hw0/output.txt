@@ -1,7 +1,7 @@
 ---
 name:
-   first: Chris
-   last: Dyer
-email: cdyer@cs.cmu.edu
-leaderboard: ProfDyer
-languages: [eng,deu]
+   first: Homa
+   last: Baradaran Hashemi
+email: hbhashemi@cmu.edu
+leaderboard: HBH
+languages: [per,eng]
