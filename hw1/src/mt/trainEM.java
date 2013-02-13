@@ -4,24 +4,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 public class trainEM {
 	List<String> sentPairsList = new ArrayList<String>();
-//	HashMap<String, Double> t_e_f = new HashMap<String, Double>();
 	HashMap<String, Double> count_e_f = new HashMap<String, Double>();
 	HashMap<Integer, Double> total_f = new HashMap<Integer, Double>();
 	HashMap<Integer, Double> s_total_e = new HashMap<Integer, Double>();
-//	HashMap<String, Integer> engWords = new HashMap<String, Integer>();
-//	HashMap<String, Integer> gerWords = new HashMap<String, Integer>();
 	
 	public void trainEMforIBM1(List<String> sentPairsList1) {
 		this.sentPairsList = sentPairsList1;
 		initializeUniformly();
 		int converged=0;
 		while(converged < mainIBM.converged){
+			System.out.println("-------- interation #: " + converged);
 			converged++;
 //			sortPrint(this.t_e_f);
 			// initialize
@@ -59,6 +58,8 @@ public class trainEM {
 			// estimate probabilities	
 			for(Entry<String, Integer> german : mainIBM.gerWordsIdx.entrySet()){
 				for(Entry<String, Integer> english : mainIBM.engWordsIdx.entrySet()){
+					if(!count_e_f.containsKey(english.getValue() + "-" + german.getValue()))
+						continue;
 					double temp = count_e_f.get(english.getValue() + "-" + german.getValue())/total_f.get(german.getValue());
 					mainIBM.t_e_f_Idx.put(english.getValue() + "-" + german.getValue(), temp);
 				}
@@ -93,19 +94,31 @@ public class trainEM {
 	 * initialize at the beginning of each iteration
 	 */
 	private void initialize() {
-		for(Entry<String, Integer> german : mainIBM.gerWordsIdx.entrySet()){
-			for(Entry<String, Integer> english : mainIBM.engWordsIdx.entrySet()){
-				count_e_f.put(english.getValue() + "-" + german.getValue(), 0.0);
-			}
-			total_f.put(german.getValue(), 0.0);
-		}	
+		for(String key: count_e_f.keySet()){
+			count_e_f.put(key, 0.0);
+		}
+		
+		for(Integer key: total_f.keySet()){
+			total_f.put(key, 0.0);
+		}
+		
+		//This code is not efficient.
+//		for(Entry<String, Integer> german : mainIBM.gerWordsIdx.entrySet()){
+//			for(Entry<String, Integer> english : mainIBM.engWordsIdx.entrySet()){
+//				count_e_f.put(english.getValue() + "-" + german.getValue(), 0.0);
+//			}
+//			total_f.put(german.getValue(), 0.0);
+//		}	
+
 	}
 
 	private void initializeUniformly() {
 		String word;
 		String[] sents, engSent, gerSent;
 		int i;
-		int engCount = 0, gerCount = 0;
+		int engIdx = 0, gerIdx = 0;
+		HashMap<String, Integer> uniformCounts = new HashMap<String, Integer>();
+		
 		for(i=0; i<mainIBM.sentNoTrain && i < sentPairsList.size(); i++){
 			sents = sentPairsList.get(i).split("\t");
 			gerSent = sents[0].split(" ");
@@ -113,40 +126,58 @@ public class trainEM {
 					
 			for(int j=0; j<gerSent.length; j++){
 				word = gerSent[j];
-//				if(gerWords.containsKey(word)){
-//					gerWords.put(word, gerWords.get(word)+1);
-//				} else
-//					gerWords.put(word, 1);
-				
 				// store indexes of words
 				if(!mainIBM.gerWordsIdx.containsKey(word)){
-					mainIBM.gerWordsIdx.put(word, gerCount);
-					gerCount++;
+					mainIBM.gerWordsIdx.put(word, gerIdx);
+					total_f.put(gerIdx, 0.0);
+					gerIdx++;
 				}
 			}		
 			
 			for(int j=0; j<engSent.length; j++){
-				word = engSent[j];
-//				if(engWords.containsKey(word)){
-//					engWords.put(word, engWords.get(word)+1);
-//				} else
-//					engWords.put(word, 1);
-				
+				word = engSent[j];				
 				// store indexes of words
 				if(!mainIBM.engWordsIdx.containsKey(word)){
-					mainIBM.engWordsIdx.put(word, engCount);
-					engCount++;
+					mainIBM.engWordsIdx.put(word, engIdx);					
+					engIdx++;
 				}
 			}
+			
+			String e, f;
+			for(int j=0; j<gerSent.length; j++){
+				for(int k=0; k<engSent.length; k++){
+					e = Integer.toString(mainIBM.engWordsIdx.get(engSent[k]));
+					f = Integer.toString(mainIBM.gerWordsIdx.get(gerSent[j]));
+					
+					//add this hashmap to intitialize uniform distribution
+					if(!uniformCounts.containsKey(e))
+						uniformCounts.put(e, 1);
+					else if (!count_e_f.containsKey(e+ "-" + f))
+						uniformCounts.put(e, uniformCounts.get(e)+1);
+					
+					mainIBM.t_e_f_Idx.put(e + "-" + f, 0.0);
+					count_e_f.put(e + "-" + f, 0.0);				
+				}
+			}		
+		}
+				
+		//uniform based on each word
+		for(String key: mainIBM.t_e_f_Idx.keySet()){
+			String e = key.split("-")[0];
+			Double prob = (double) 1/uniformCounts.get(e);
+			mainIBM.t_e_f_Idx.put(key, prob);
 		}
 		
-		Double uniProb = (double) 1/mainIBM.gerWordsIdx.size();
-		for(Entry<String, Integer> german : mainIBM.gerWordsIdx.entrySet()){
-			for(Entry<String, Integer> english : mainIBM.engWordsIdx.entrySet()){
-//				t_e_f.put(english.getKey() + "\t" + german.getKey(), uniProb);
-				mainIBM.t_e_f_Idx.put(english.getValue() + "-" + german.getValue(), uniProb);
-			}
-		}
+		//This code is not efficient. I used only matched words in sentence pairs
+//		Double uniProb = (double) 1/mainIBM.gerWordsIdx.size();
+//		for(Entry<String, Integer> german : mainIBM.gerWordsIdx.entrySet()){
+//			for(Entry<String, Integer> english : mainIBM.engWordsIdx.entrySet()){
+////				t_e_f.put(english.getKey() + "\t" + german.getKey(), uniProb);
+//				mainIBM.t_e_f_Idx.put(english.getValue() + "-" + german.getValue(), uniProb);
+//			}
+//		}
+		
+		
 	}
 
 }

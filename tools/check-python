@@ -6,6 +6,7 @@ if [ $? -ne 0 ] ; then
   exit 1
 fi
 (python --version 2>&1) | perl -e '$_=<>; exit 0 if /2\.7\.\d+$/; exit 1;'
+echo test
 if [ $? -ne 0 ] ; then
   echo Incorrect version of Python in your path!
   exit 1
