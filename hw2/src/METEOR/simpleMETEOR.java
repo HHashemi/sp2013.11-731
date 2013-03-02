@@ -1,6 +1,7 @@
 package METEOR;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
@@ -18,11 +19,11 @@ public class simpleMETEOR {
 			hyp2 = sents[1];
 			ref = sents[2];
 			
-			h1 = calcSimpleMeteorScore(hyp1, ref);
-			h2 = calcSimpleMeteorScore(hyp2, ref);
+//			h1 = calcSimpleMeteorScore(hyp1, ref);
+//			h2 = calcSimpleMeteorScore(hyp2, ref);
 			
-//			h1 = calcMeteorScore(hyp1, ref);
-//			h2 = calcMeteorScore(hyp2, ref);
+			h1 = calcMeteorScore(hyp1, ref);
+			h2 = calcMeteorScore(hyp2, ref);
 			
 			if(h1 > h2)
 				simpleMeteorScoresList.put(i,"-1");
@@ -38,28 +39,49 @@ public class simpleMETEOR {
 	private double calcMeteorScore(String hyp, String ref) {
 		List<String> hypList = splitSentencToWords(hyp);
 		List<String> refList = splitSentencToWords(ref);
-				
+		
+		hypList.addAll(addNgrams(hypList));			
+		refList.addAll(addNgrams(refList));
+		
 		int matchCount=0;
-		for(int i=0; i<hypList.size(); i++){
-			if(refList.contains(hypList.get(i))){
+				
+		for(int i=0; i<refList.size(); i++){
+			if(hypList.contains(refList.get(i))){
 				matchCount++;
 			}
-		}
+		}	
 		
 		double P = (double) matchCount/hypList.size();
-		double R = (double) matchCount/refList.size();
-		
+		double R = (double) matchCount/refList.size();		
 		if(P == 0 || R == 0)
-			return 0;
-		
+			return 0;		
 		double nom = P*R; 
-		double denom = alpha * R + (1.0-alpha) * P;
-		
-		double mean = nom/denom;
-		
+		double denom = alpha * R + (1.0-alpha) * P;		
+		double mean = nom/denom;		
 		return mean;
 	}
 	
+	private List<String> addNgrams(List<String> wordList) {
+		List<String> ngram = new ArrayList<String>();
+		
+		//add bigram
+		for(int i=0; i<wordList.size()-1; i++){
+			ngram.add(wordList.get(i) + " " + wordList.get(i+1));
+		}
+		
+		//add trigram
+		for(int i=0; i<wordList.size()-2; i++){
+			ngram.add(wordList.get(i) + " " + wordList.get(i+1) + " " + wordList.get(i+2));
+		}
+		
+		//add 4-gram
+//		for(int i=0; i<wordList.size()-3; i++){
+//			ngram.add(wordList.get(i) + " " + wordList.get(i+1) + " " + wordList.get(i+2) + " " + wordList.get(i+3));
+//		}
+		
+		return ngram;
+	}
+
 	/**
 	 * separate the punctuations in the sentence
 	 * @param sent
@@ -67,9 +89,14 @@ public class simpleMETEOR {
 	 */
 	private List<String> splitSentencToWords(String sent) {
 		List<String> list = new ArrayList<String>();	
-//		sent = sent.replaceAll("([?:!.,;\"'])", " $1 ");
-		sent = sent.replaceAll("([?:!.,;\"'])", " "); //remove all the punctuations
-
+//		sent = sent.replaceAll("([?:!.,;\"'])", " $1 "); //consider punctuations as separate words
+//		sent = sent.replaceAll("([?:!.,;\"'])", " "); 
+//		sent = sent.replaceAll("([?:!.,;\"'()])", " ");
+//		sent = sent.replaceAll("([?:!.,;\"'()\\/])", " ");
+		sent = sent.replace("&quot;", " ");
+		sent = sent.replace("&#39;", " ");
+		sent= sent.replaceAll("\\W", " "); //remove all the punctuations
+		
 		sent = sent.replace("  ", " ");		
 		String[] words = sent.split(" ");		
 		
@@ -80,6 +107,12 @@ public class simpleMETEOR {
 		return list;
 	}
 
+	/**
+	 * This is the implementation for simple METEOR
+	 * @param hyp
+	 * @param ref
+	 * @return
+	 */
 	private double calcSimpleMeteorScore(String hyp, String ref) {
 		String[] hypWords = hyp.split(" ");
 		String[] refWords = ref.split(" ");
