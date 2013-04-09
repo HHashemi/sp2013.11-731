@@ -10,4 +10,4 @@ I modified the simple stack decoder by adding the following features:
 
 -Adding estimated future cost to prune stacks.
 
--Finally, combining different output files in order to find the best translations.
+-Finally, combining different my output files in order to find the best translations. This combination is over only my outputs files which were based on different settings (such as stack size, reordering limit and pruning conditions) . In more details, each time that I changed one of the parameters of the system, I kept the output file and at the last run, I combined them altogether
